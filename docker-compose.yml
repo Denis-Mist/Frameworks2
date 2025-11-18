@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  api_gateway:
+    build: ./api_gateway
+    container_name: api_gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=8000
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
+      - USERS_SERVICE_URL=http://service_users:8001
+      - ORDERS_SERVICE_URL=http://service_orders:8002
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-*}
+    depends_on:
+      - service_users
+      - service_orders
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  service_users:
+    build: ./service_users
+    container_name: service_users
+    expose:
+      - "8001"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=8001
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  service_orders:
+    build: ./service_orders
+    container_name: service_orders
+    expose:
+      - "8002"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=8002
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
+      - USERS_SERVICE_URL=http://service_users:8001
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    depends_on:
+      - service_users
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  app-network:
+    driver: bridge
